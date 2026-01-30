@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wiki Quiz Generator</title>
+<style>
+body { font-family: Arial; margin: 20px; }
+input { width: 70%; padding: 8px; margin-right: 10px; }
+button { padding: 8px 12px; }
+.card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; background: #f9f9f9; }
+.badge { padding: 2px 6px; border-radius: 4px; color: #fff; }
+.easy { background: green; }
+.medium { background: orange; }
+.hard { background: red; }
+</style>
+</head>
+<body>
+
+<h1>Wiki Quiz Generator</h1>
+
+<input type="text" id="wikiUrl" placeholder="Enter Wikipedia URL">
+<button onclick="generateQuiz()">Generate Quiz</button>
+
+<h2>Quiz Output</h2>
+<div id="quizOutput"></div>
+
+<h2>Related Topics</h2>
+<div id="relatedTopics"></div>
+
+<h2>Past Quizzes</h2>
+<div id="history"></div>
+
+<script>
+const backendUrl = "http://127.0.0.1:8000";
+
+async function generateQuiz() {
+    const url = document.getElementById('wikiUrl').value;
+    if (!url) return alert("Enter Wikipedia URL!");
+
+    const res = await fetch(`${backendUrl}/generate?url=${encodeURIComponent(url)}`);
+    const data = await res.json();
+
+    // Quiz Output
+    const quizOutput = document.getElementById('quizOutput');
+    quizOutput.innerHTML = '';
+    data.quiz.forEach((q, index) => {
+        let optionsHtml = "<ol type='1'>";
+        q.options.forEach(opt => { optionsHtml += `<li>${opt}</li>`; });
+        optionsHtml += "</ol>";
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `<strong>Q${index+1}: ${q.question}</strong>
+            ${optionsHtml}
+            <p>Answer: ${q.answer} <span class="badge ${q.difficulty}">${q.difficulty}</span></p>
+            <p>Explanation: ${q.explanation}</p>`;
+        quizOutput.appendChild(card);
+    });
+
+    // Related Topics
+    const topicsDiv = document.getElementById('relatedTopics');
+    topicsDiv.innerHTML = data.related_topics.join(", ");
+
+    loadHistory();
+}
+
+async function loadHistory() {
+    const res = await fetch(`${backendUrl}/history`);
+    const historyData = await res.json();
+
+    const historyDiv = document.getElementById('history');
+    historyDiv.innerHTML = '';
+    historyData.forEach((h, i) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `<strong>${i+1}. ${h.title}</strong><br>
+            <button onclick="showQuiz(${i})">Show Quiz</button>`;
+        historyDiv.appendChild(card);
+    });
+}
+
+function showQuiz(index) {
+    fetch(`${backendUrl}/history`)
+        .then(res => res.json())
+        .then(data => {
+            const q = data[index];
+            document.getElementById('quizOutput').innerHTML = '';
+            q.quiz.forEach((qu, i) => {
+                let optionsHtml = "<ol type='1'>";
+                qu.options.forEach(opt => { optionsHtml += `<li>${opt}</li>`; });
+                optionsHtml += "</ol>";
+
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `<strong>Q${i+1}: ${qu.question}</strong>
+                    ${optionsHtml}
+                    <p>Answer: ${qu.answer} <span class="badge ${qu.difficulty}">${qu.difficulty}</span></p>
+                    <p>Explanation: ${qu.explanation}</p>`;
+                document.getElementById('quizOutput').appendChild(card);
+            });
+
+            const topicsDiv = document.getElementById('relatedTopics');
+            topicsDiv.innerHTML = q.related_topics.join(", ");
+        });
+}
+
+// Load past quizzes on page load
+loadHistory();
+</script>
+
+</body>
+</html>
